@@ -1,16 +1,39 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Package2Icon, SearchIcon, FilterIcon, EyeIcon, PrinterIcon, MoreHorizontalIcon, MapPinIcon, XCircleIcon, MessageCircleIcon, AlertTriangleIcon, StarIcon } from 'lucide-react';
-const OrderActionMenu = ({
+import { orderApi } from '../../lib/api';
+
+interface Order {
+  id: string;
+  customer: string;
+  phone: string;
+  address: string;
+  status: string;
+  time: string;
+}
+
+interface OrderActionMenuProps {
+  order: Order;
+  onClose: () => void;
+  onAction: (action: string, order: Order) => void;
+  position: { x: number; y: number };
+}
+
+interface OrdersResponse {
+  orders: Order[];
+  total: number;
+}
+
+const OrderActionMenu: React.FC<OrderActionMenuProps> = ({
   order,
   onClose,
   onAction,
   position
 }) => {
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const handleClickOutside = event => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onClose();
       }
     };
@@ -49,22 +72,56 @@ const OrderActionMenu = ({
       </div>
     </div>;
 };
-const OrderList = () => {
+
+const OrderList: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('Tất cả');
   const [showFilters, setShowFilters] = useState(false);
-  const [activeMenu, setActiveMenu] = useState(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({
     x: 0,
     y: 0
   });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0
+  });
+
   useEffect(() => {
     if (location.state?.newOrder) {
       console.log(`Đơn hàng ${location.state.orderId} đã được tạo và đang chờ xử lý`);
     }
-  }, [location]);
+    fetchOrders();
+  }, [location, selectedStatus, pagination.page]);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await orderApi.getOrders({
+        page: pagination.page,
+        limit: pagination.limit,
+        status: selectedStatus === 'Tất cả' ? undefined : selectedStatus
+      });
+      const data = response.data as OrdersResponse;
+      setOrders(data.orders);
+      setPagination(prev => ({
+        ...prev,
+        total: data.total
+      }));
+    } catch (err) {
+      setError('Không thể tải danh sách đơn hàng');
+      console.error('Error fetching orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case 'Chờ xử lý':
@@ -79,51 +136,41 @@ const OrderList = () => {
         return 'bg-gray-100 text-gray-600';
     }
   };
-  const [orders] = useState([{
-    id: 'DH001',
-    customer: 'Nguyễn Văn A',
-    phone: '0912345678',
-    address: '219 Trung Kính, Cầu Giấy, Hà Nội',
-    status: 'Đang giao',
-    time: '15/12/2023 12:30'
-  }, {
-    id: 'DH002',
-    customer: 'Trần Thị B',
-    phone: '0987654321',
-    address: '48 Tố Hữu, Nam Từ Liêm, Hà Nội',
-    status: 'Chờ xử lý',
-    time: '15/12/2023 11:45'
-  }, {
-    id: 'DH003',
-    customer: 'Lê Văn C',
-    phone: '0977123456',
-    address: '36 Hoàng Cầu, Đống Đa, Hà Nội',
-    status: 'Đã giao',
-    time: '15/12/2023 09:15'
-  }]);
-  const filteredOrders = orders.filter(order => (selectedStatus === 'Tất cả' || order.status === selectedStatus) && (order.id.toLowerCase().includes(searchQuery.toLowerCase()) || order.customer.toLowerCase().includes(searchQuery.toLowerCase()) || order.phone.includes(searchQuery)));
-  const handleActionClick = (action, order) => {
-    switch (action) {
-      case 'cancel':
-        if (window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
-          // Handle cancel order
-        }
-        break;
-      case 'changeAddress':
-        // Handle change address
-        break;
-      case 'chat':
-        // Handle chat
-        break;
-      case 'report':
-        // Handle report
-        break;
-      case 'rate':
-        // Handle rate
-        break;
+
+  const filteredOrders = orders.filter(order => 
+    order.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    order.customer.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    order.phone.includes(searchQuery)
+  );
+
+  const handleActionClick = async (action: string, order: Order) => {
+    try {
+      switch (action) {
+        case 'cancel':
+          if (window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
+            await orderApi.cancelOrder(order.id);
+            fetchOrders();
+          }
+          break;
+        case 'changeAddress':
+          navigate(`/orders/${order.id}/change-address`);
+          break;
+        case 'chat':
+          navigate(`/chat/${order.id}`);
+          break;
+        case 'report':
+          navigate(`/orders/${order.id}/report`);
+          break;
+        case 'rate':
+          navigate(`/orders/${order.id}/rate`);
+          break;
+      }
+    } catch (err) {
+      console.error('Error handling action:', err);
     }
     setActiveMenu(null);
   };
+
   const handleMoreClick = (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -133,6 +180,21 @@ const OrderList = () => {
     });
     setActiveMenu(activeMenu === orderId ? null : orderId);
   };
+
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-600 p-4">{error}</div>;
+  }
+
   return <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Quản lý đơn hàng</h1>
@@ -223,22 +285,34 @@ const OrderList = () => {
         <div className="px-6 py-4 border-t">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Hiển thị 1-3 của 12 đơn hàng
+              Hiển thị {pagination.page * pagination.limit - pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} của {pagination.total} đơn hàng
             </div>
             <div className="flex gap-2">
-              <button className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+              <button 
+                onClick={() => handlePageChange(pagination.page - 1)} 
+                disabled={pagination.page === 1}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+              >
                 Trước
               </button>
-              <button className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm font-medium">
-                1
-              </button>
-              <button className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-                2
-              </button>
-              <button className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-                3
-              </button>
-              <button className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+              {Array.from({ length: Math.ceil(pagination.total / pagination.limit) }, (_, i) => i + 1)
+                .slice(Math.max(0, pagination.page - 2), Math.min(Math.ceil(pagination.total / pagination.limit), pagination.page + 1))
+                .map(page => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      page === pagination.page ? 'bg-orange-50 text-orange-600' : 'border hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              <button 
+                onClick={() => handlePageChange(pagination.page + 1)} 
+                disabled={pagination.page * pagination.limit >= pagination.total}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+              >
                 Sau
               </button>
             </div>
@@ -247,4 +321,5 @@ const OrderList = () => {
       </div>
     </div>;
 };
+
 export default OrderList;

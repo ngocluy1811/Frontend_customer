@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MapPinIcon, XIcon } from 'lucide-react';
 interface Address {
-  id?: number;
+  id?: string;
   label: string;
   name: string;
   phone: string;

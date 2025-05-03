@@ -1,96 +1,97 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapPinIcon, PlusIcon, StarIcon, PencilIcon, TrashIcon } from 'lucide-react';
 import AddAddressModal from '../modals/AddAddressModal';
+import api from '../../lib/api';
+
 interface Address {
-  id: number;
+  id: string;
   label: string;
   name: string;
   phone: string;
   address: string;
   isDefault: boolean;
 }
+
 const AddressManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-  const [addresses, setAddresses] = useState<Address[]>([{
-    id: 1,
-    label: 'Nhà riêng',
-    name: 'Nguyễn Văn A',
-    phone: '0912345678',
-    address: '219 Trung Kính, Cầu Giấy, Hà Nội',
-    isDefault: true
-  }, {
-    id: 2,
-    label: 'Văn phòng',
-    name: 'Nguyễn Văn A',
-    phone: '0912345678',
-    address: '48 Tố Hữu, Nam Từ Liêm, Hà Nội',
-    isDefault: false
-  }, {
-    id: 3,
-    label: 'Nhà người thân',
-    name: 'Trần Thị B',
-    phone: '0987654321',
-    address: '36 Hoàng Cầu, Đống Đa, Hà Nội',
-    isDefault: false
-  }]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const fetchAddresses = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/addresses');
+      const data = res.data as unknown;
+      setAddresses(((data as any).addresses || data) as Address[]);
+    } catch (err) {
+      setError('Không thể tải danh sách địa chỉ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAddresses();
+  }, []);
+
   const handleEdit = (address: Address) => {
     setEditingAddress(address);
     setIsEditModalOpen(true);
   };
-  const handleDelete = (id: number) => {
+
+  const handleDelete = async (id: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) {
-      setAddresses(addresses.filter(addr => addr.id !== id));
-    }
-  };
-  const handleSetDefault = (id: number) => {
-    setAddresses(addresses.map(addr => ({
-      ...addr,
-      isDefault: addr.id === id
-    })));
-  };
-  const handleSave = (address: Address) => {
-    if (editingAddress) {
-      if (address.isDefault) {
-        setAddresses(addresses.map(addr => ({
-          ...addr,
-          isDefault: addr.id === editingAddress.id ? true : false
-        })));
-      } else {
-        if (editingAddress.isDefault) {
-          setAddresses(addresses.map(addr => addr.id === editingAddress.id ? {
-            ...address,
-            id: addr.id,
-            isDefault: true
-          } : addr));
-        } else {
-          setAddresses(addresses.map(addr => addr.id === editingAddress.id ? {
-            ...address,
-            id: addr.id
-          } : addr));
-        }
-      }
-    } else {
-      if (address.isDefault) {
-        setAddresses([...addresses.map(addr => ({
-          ...addr,
-          isDefault: false
-        })), {
-          ...address,
-          id: addresses.length + 1
-        }]);
-      } else {
-        setAddresses([...addresses, {
-          ...address,
-          id: addresses.length + 1
-        }]);
+      try {
+        setLoading(true);
+        await api.delete(`/addresses/${id}`);
+        setSuccess('Xóa địa chỉ thành công!');
+        fetchAddresses();
+      } catch (err) {
+        setError('Xóa địa chỉ thất bại');
+      } finally {
+        setLoading(false);
       }
     }
-    setIsAddModalOpen(false);
-    setIsEditModalOpen(false);
-    setEditingAddress(null);
   };
+
+  const handleSetDefault = async (id: string) => {
+    try {
+      setLoading(true);
+      await api.patch(`/addresses/${id}/default`);
+      setSuccess('Đặt địa chỉ mặc định thành công!');
+      fetchAddresses();
+    } catch (err) {
+      setError('Đặt mặc định thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (address: Address) => {
+    try {
+      setLoading(true);
+      if (editingAddress) {
+        await api.put(`/addresses/${editingAddress.id}`, address);
+        setSuccess('Cập nhật địa chỉ thành công!');
+      } else {
+        await api.post('/addresses', address);
+        setSuccess('Thêm địa chỉ thành công!');
+      }
+      fetchAddresses();
+    } catch (err) {
+      setError('Lưu địa chỉ thất bại');
+    } finally {
+      setLoading(false);
+      setIsAddModalOpen(false);
+      setIsEditModalOpen(false);
+      setEditingAddress(null);
+    }
+  };
+
   return <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Quản lý địa chỉ</h1>
@@ -99,6 +100,9 @@ const AddressManagement = () => {
           Thêm địa chỉ mới
         </button>
       </div>
+      {loading ? <div className="flex justify-center items-center h-32">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500"></div>
+      </div> : error ? <div className="text-center text-red-600 p-4">{error}</div> : <>
       <div className="grid grid-cols-2 gap-6">
         {addresses.map(address => <div key={address.id} className="bg-white rounded-lg p-6 shadow-sm space-y-4">
             <div className="flex justify-between items-start">
@@ -129,11 +133,13 @@ const AddressManagement = () => {
               </button>}
           </div>)}
       </div>
+      {success && <div className="text-green-600 text-center mt-2">{success}</div>}
+      </>}
       <AddAddressModal isOpen={isAddModalOpen || isEditModalOpen} onClose={() => {
       setIsAddModalOpen(false);
       setIsEditModalOpen(false);
       setEditingAddress(null);
-    }} onSave={handleSave} editingAddress={editingAddress} />
+    }} onSave={handleSave as any} editingAddress={editingAddress as any} />
     </div>;
 };
 export default AddressManagement;

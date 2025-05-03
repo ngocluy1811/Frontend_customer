@@ -11,6 +11,8 @@ import AddressManagement from './components/address/AddressManagement';
 import Support from './components/support/Support';
 import CouponManagement from './components/coupon/CouponManagement';
 import NotificationCenter from './components/notification/NotificationCenter';
+import Profile from './components/account/Profile';
+import ChangePassword from './components/account/ChangePassword';
 export function App() {
   return <BrowserRouter>
       <Layout>
@@ -25,6 +27,8 @@ export function App() {
           <Route path="/support" element={<Support />} />
           <Route path="/coupons" element={<CouponManagement />} />
           <Route path="/notifications" element={<NotificationCenter />} />
+          <Route path="/account/profile" element={<Profile />} />
+          <Route path="/account/change-password" element={<ChangePassword />} />
         </Routes>
       </Layout>
     </BrowserRouter>;

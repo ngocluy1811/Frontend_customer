@@ -1,24 +1,100 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Package2Icon, TruckIcon, MapPinIcon, PhoneIcon, ClockIcon, DollarSignIcon, PrinterIcon, ShareIcon, MessageCircleIcon, AlertTriangleIcon, StarIcon, CheckCircleIcon } from 'lucide-react';
 import ShipperLocationMap from './ShipperLocationMap';
 import ShipperChat from '../chat/ShipperChat';
 import RatingModal from '../modals/RatingModal';
-const ShipperInfo = () => {
+import { orderApi } from '../../lib/api';
+
+interface TimelineItem {
+  icon: any;
+  label: string;
+  time: string;
+  active: boolean;
+}
+
+interface Shipper {
+  id: string;
+  name: string;
+  phone: string;
+  avatar: string;
+  status: 'online' | 'offline' | 'busy';
+}
+
+interface Order {
+  id: string;
+  status: string;
+  isRated: boolean;
+  timeline: TimelineItem[];
+  shipper?: Shipper;
+  customer: {
+    name: string;
+    phone: string;
+    address: string;
+  };
+  package: {
+    weight: number;
+    dimensions: string;
+    description: string;
+  };
+  payment: {
+    method: string;
+    amount: number;
+    status: string;
+  };
+}
+
+interface OrderResponse {
+  order: Order;
+}
+
+interface ShipperLocationResponse {
+  location: {
+    lat: number;
+    lng: number;
+  };
+  destination: {
+    lat: number;
+    lng: number;
+  };
+}
+
+interface OrderHistoryResponse {
+  history: Array<{
+    status: string;
+    time: string;
+    location: string;
+    description?: string;
+    active: boolean;
+  }>;
+}
+
+const ShipperInfo: React.FC<{ shipper: Shipper }> = ({ shipper }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const shipperLocation = {
-    lat: 21.028511,
-    lng: 105.804817
-  };
-  const destination = {
-    lat: 21.035771,
-    lng: 105.813809
-  };
-  const shipper = {
-    name: 'Nguyễn Văn C',
-    phone: '0912345678',
-    avatar: 'https://randomuser.me/api/portraits/men/1.jpg'
-  };
+  const [shipperLocation, setShipperLocation] = useState({
+    lat: 0,
+    lng: 0
+  });
+  const [destination, setDestination] = useState({
+    lat: 0,
+    lng: 0
+  });
+
+  useEffect(() => {
+    const fetchShipperLocation = async () => {
+      try {
+        const response = await orderApi.getShipperLocation(shipper.id);
+        const data = response.data as ShipperLocationResponse;
+        setShipperLocation(data.location);
+        setDestination(data.destination);
+      } catch (error) {
+        console.error('Error fetching shipper location:', error);
+      }
+    };
+
+    fetchShipperLocation();
+  }, [shipper.id]);
+
   return <div className="bg-white rounded-lg shadow-sm space-y-4">
       <div className="p-6">
         <h2 className="font-medium flex items-center gap-2">
@@ -55,24 +131,33 @@ const ShipperInfo = () => {
       {isChatOpen && <ShipperChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} shipper={shipper} />}
     </div>;
 };
-const DeliveryHistory = ({
-  status
-}: {
-  status: string;
-}) => {
-  const history = [{
-    status: 'Đã nhận đơn',
-    time: '15/12/2023 14:30',
-    location: 'Kho Mỹ Đình, Nam Từ Liêm, Hà Nội',
-    description: 'Đơn hàng đã được xác nhận',
-    active: true
-  }, {
-    status: 'Đang xử lý',
-    time: '15/12/2023 14:30',
-    location: 'Kho Mỹ Đình, Nam Từ Liêm, Hà Nội',
-    description: 'Đơn hàng đang được xử lý',
-    active: status === 'Chờ xử lý'
-  }];
+
+const DeliveryHistory: React.FC<{ status: string; orderId: string }> = ({ status, orderId }) => {
+  const [history, setHistory] = useState<OrderHistoryResponse['history']>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await orderApi.getOrderHistory(orderId);
+        const data = response.data as OrderHistoryResponse;
+        setHistory(data.history);
+      } catch (error) {
+        console.error('Error fetching order history:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [orderId]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>;
+  }
+
   return <div className="bg-white rounded-lg p-6 shadow-sm">
       <h2 className="font-medium flex items-center gap-2 mb-6">
         <ClockIcon className="h-5 w-5 text-orange-500" />
@@ -101,97 +186,47 @@ const DeliveryHistory = ({
       </div>
     </div>;
 };
-const OrderDetail = () => {
-  const {
-    id
-  } = useParams();
+
+const OrderDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [order, setOrder] = useState(() => {
-    const baseTimeline = [{
-      icon: Package2Icon,
-      label: 'Đã tiếp nhận',
-      time: '15/12/2023 14:30',
-      active: true
-    }, {
-      icon: TruckIcon,
-      label: 'Đang xử lý',
-      time: '15/12/2023 14:45',
-      active: false
-    }, {
-      icon: MapPinIcon,
-      label: 'Đang giao',
-      time: '15/12/2023 15:00',
-      active: false
-    }, {
-      icon: CheckCircleIcon,
-      label: 'Đã giao',
-      time: '15/12/2023 16:00',
-      active: false
-    }];
-    switch (id) {
-      case 'DH001':
-        return {
-          id,
-          status: 'Đang giao',
-          isRated: false,
-          timeline: baseTimeline.map((item, index) => ({
-            ...item,
-            active: index <= 2
-          })),
-          shipper: {
-            name: 'Nguyễn Văn C',
-            phone: '0912345678',
-            avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-            status: 'online'
-          }
-        };
-      case 'DH002':
-        return {
-          id,
-          status: 'Chờ xử lý',
-          isRated: false,
-          timeline: baseTimeline.map((item, index) => ({
-            ...item,
-            active: index === 0
-          }))
-        };
-      case 'DH003':
-        return {
-          id,
-          status: 'Đã giao',
-          isRated: false,
-          timeline: baseTimeline.map(item => ({
-            ...item,
-            active: true
-          })),
-          shipper: {
-            name: 'Nguyễn Văn C',
-            phone: '0912345678',
-            avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-            status: 'online'
-          }
-        };
-      default:
-        return {
-          id,
-          status: 'Chờ xử lý',
-          isRated: false,
-          timeline: baseTimeline.map((item, index) => ({
-            ...item,
-            active: index === 0
-          }))
-        };
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchOrder = async () => {
+      try {
+        setLoading(true);
+        const response = await orderApi.getOrderById(id!);
+        const data = response.data as OrderResponse;
+        setOrder(data.order);
+      } catch (err) {
+        setError('Không thể tải thông tin đơn hàng');
+        console.error('Error fetching order:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [id]);
+
+  const handleRatingSubmit = async (ratingData: any) => {
+    try {
+      await orderApi.updateOrder(id!, { rating: ratingData });
+      setOrder(prev => prev ? { ...prev, isRated: true } : null);
+      setIsRatingModalOpen(false);
+    } catch (error) {
+      console.error('Error submitting rating:', error);
     }
-  });
-  const handleRatingSubmit = (ratingData: any) => {
-    setOrder(prev => ({
-      ...prev,
-      isRated: true
-    }));
-    setIsRatingModalOpen(false);
   };
+
   const renderShipperSection = () => {
+    if (!order) return null;
+
     switch (order.status) {
       case 'Đang giao':
         return <div className="space-y-6">
@@ -235,7 +270,7 @@ const OrderDetail = () => {
               }} />
               </div>
             </div>
-            {isChatOpen && <ShipperChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} shipper={order.shipper} />}
+            {isChatOpen && order.shipper && <ShipperChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} shipper={order.shipper} />}
           </div>;
       case 'Chờ xử lý':
         return <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -248,7 +283,7 @@ const OrderDetail = () => {
             </div>
           </div>;
       case 'Đã giao':
-        return <div className="space-y-4">
+        return <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 shadow-sm">
               <h2 className="font-medium flex items-center gap-2 mb-4">
                 <TruckIcon className="h-5 w-5 text-orange-500" />
@@ -258,33 +293,47 @@ const OrderDetail = () => {
                 <img src={order.shipper?.avatar} alt={order.shipper?.name} className="w-12 h-12 rounded-full" />
                 <div>
                   <div className="font-medium">{order.shipper?.name}</div>
-                  <div className="text-sm text-gray-600">
-                    {order.shipper?.phone}
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <PhoneIcon className="h-4 w-4" />
+                    <span>{order.shipper?.phone}</span>
                   </div>
                 </div>
               </div>
               {!order.isRated && <button onClick={() => setIsRatingModalOpen(true)} className="mt-4 w-full px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center justify-center gap-2">
-                  <StarIcon className="h-5 w-5" />
+                  <StarIcon className="h-4 w-4" />
                   Đánh giá shipper
                 </button>}
-              {order.isRated && <div className="mt-4 p-3 bg-green-50 text-green-600 rounded-lg text-center">
-                  Bạn đã đánh giá shipper này
-                </div>}
             </div>
+            {isRatingModalOpen && order.shipper && <RatingModal 
+              isOpen={isRatingModalOpen} 
+              onClose={() => setIsRatingModalOpen(false)} 
+              onSubmit={handleRatingSubmit}
+              shipperName={order.shipper.name}
+              shipperAvatar={order.shipper.avatar}
+            />}
           </div>;
       default:
         return null;
     }
   };
-  return <div className="max-w-5xl mx-auto space-y-6">
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-600 p-4">{error}</div>;
+  }
+
+  if (!order) {
+    return <div className="text-center text-gray-600 p-4">Không tìm thấy đơn hàng</div>;
+  }
+
+  return <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Package2Icon className="h-6 w-6 text-orange-500" />
-            Chi tiết đơn hàng #{id}
-          </h1>
-          <p className="text-gray-500">Cập nhật lần cuối: 15/12/2023 14:30</p>
-        </div>
+        <h1 className="text-2xl font-bold">Chi tiết đơn hàng #{order.id}</h1>
         <div className="flex gap-2">
           <button className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
             <PrinterIcon className="h-5 w-5" />
@@ -296,121 +345,41 @@ const OrderDetail = () => {
           </button>
         </div>
       </div>
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="flex justify-between items-center">
-          {order.timeline.map((step, index) => <div key={index} className={`flex-1 relative ${index !== 0 ? 'pl-6' : ''} text-center`}>
-              <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center ${step.active ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                <step.icon className="h-5 w-5" />
+      <div className="grid grid-cols-3 gap-6">
+        <div className="col-span-2 space-y-6">
+          {renderShipperSection()}
+          <DeliveryHistory status={order.status} orderId={order.id} />
+        </div>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h2 className="font-medium flex items-center gap-2 mb-4">
+              <Package2Icon className="h-5 w-5 text-orange-500" />
+              Thông tin đơn hàng
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm text-gray-500">Khách hàng</div>
+                <div className="font-medium">{order.customer.name}</div>
+                <div className="text-sm text-gray-500">{order.customer.phone}</div>
+                <div className="text-sm text-gray-500">{order.customer.address}</div>
               </div>
-              <div className="mt-2">
-                <div className={`font-medium ${step.active ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {step.label}
-                </div>
-                <div className="text-sm text-gray-500">{step.time}</div>
+              <div>
+                <div className="text-sm text-gray-500">Gói hàng</div>
+                <div className="text-sm">Khối lượng: {order.package.weight}kg</div>
+                <div className="text-sm">Kích thước: {order.package.dimensions}</div>
+                <div className="text-sm">Mô tả: {order.package.description}</div>
               </div>
-              {index < order.timeline.length - 1 && <div className={`absolute top-5 left-[60%] w-[calc(100%-60%)] h-0.5 ${step.active ? 'bg-orange-500' : 'bg-gray-200'}`} />}
-            </div>)}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm space-y-4">
-          <h2 className="font-medium flex items-center gap-2">
-            <Package2Icon className="h-5 w-5 text-orange-500" />
-            Thông tin người gửi
-          </h2>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="font-medium">Nguyễn Văn A</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <PhoneIcon className="h-4 w-4" />
-              <span>0912345678</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <MapPinIcon className="h-4 w-4" />
-              <span>219 Trung Kính, Cầu Giấy, Hà Nội</span>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg p-6 shadow-sm space-y-4">
-          <h2 className="font-medium flex items-center gap-2">
-            <TruckIcon className="h-5 w-5 text-orange-500" />
-            Thông tin người nhận
-          </h2>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="font-medium">Trần Thị B</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <PhoneIcon className="h-4 w-4" />
-              <span>0987654321</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <MapPinIcon className="h-4 w-4" />
-              <span>48 Tố Hữu, Nam Từ Liêm, Hà Nội</span>
+              <div>
+                <div className="text-sm text-gray-500">Thanh toán</div>
+                <div className="text-sm">Phương thức: {order.payment.method}</div>
+                <div className="text-sm">Số tiền: {order.payment.amount.toLocaleString()}đ</div>
+                <div className="text-sm">Trạng thái: {order.payment.status}</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div className="bg-white rounded-lg p-6 shadow-sm space-y-4">
-        <h2 className="font-medium flex items-center gap-2">
-          <Package2Icon className="h-5 w-5 text-orange-500" />
-          Thông tin hàng hóa
-        </h2>
-        <div className="grid grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <div className="text-sm text-gray-500">Loại hàng hóa</div>
-            <div>Thực phẩm</div>
-          </div>
-          <div className="space-y-2">
-            <div className="text-sm text-gray-500">Trọng lượng</div>
-            <div>2.5 kg</div>
-          </div>
-          <div className="space-y-2">
-            <div className="text-sm text-gray-500">Kích thước</div>
-            <div>30 x 20 x 15 cm</div>
-          </div>
-          <div className="space-y-2">
-            <div className="text-sm text-gray-500">Giá trị hàng hóa</div>
-            <div>500,000đ</div>
-          </div>
-          <div className="space-y-2">
-            <div className="text-sm text-gray-500">Dịch vụ vận chuyển</div>
-            <div>Giao hàng nhanh</div>
-          </div>
-          <div className="space-y-2">
-            <div className="text-sm text-gray-500">Thời gian dự kiến</div>
-            <div>16/12/2023 17:00</div>
-          </div>
-        </div>
-      </div>
-      <div className="bg-white rounded-lg p-6 shadow-sm space-y-4">
-        <h2 className="font-medium flex items-center gap-2">
-          <DollarSignIcon className="h-5 w-5 text-orange-500" />
-          Thông tin thanh toán
-        </h2>
-        <div className="space-y-2">
-          <div className="flex justify-between py-2">
-            <span className="text-gray-600">Phí vận chuyển</span>
-            <span>35,000đ</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-gray-600">Phí đóng gói</span>
-            <span>10,000đ</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-gray-600">Giảm giá</span>
-            <span className="text-green-600">-5,000đ</span>
-          </div>
-          <div className="flex justify-between py-2 border-t font-medium">
-            <span>Tổng thanh toán</span>
-            <span className="text-orange-500">40,000đ</span>
-          </div>
-        </div>
-      </div>
-      {renderShipperSection()}
-      <DeliveryHistory status={order.status} />
-      {order.status === 'Đã giao' && !order.isRated && <RatingModal isOpen={isRatingModalOpen} onClose={() => setIsRatingModalOpen(false)} onSubmit={handleRatingSubmit} shipperName={order.shipper?.name || ''} shipperAvatar={order.shipper?.avatar || ''} />}
     </div>;
 };
+
 export default OrderDetail;
