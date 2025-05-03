@@ -1,0 +1,532 @@
+export const tables = [{
+  name: "User",
+  position: {
+    x: 300,
+    y: 40,
+    width: 250,
+    height: 220
+  },
+  fields: [{
+    name: "user_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "name",
+    type: "varchar"
+  }, {
+    name: "email",
+    type: "varchar"
+  }, {
+    name: "password",
+    type: "varchar"
+  }, {
+    name: "role",
+    type: "varchar(50)"
+  }, {
+    name: "phone_code",
+    type: "varchar"
+  }, {
+    name: "payment_code",
+    type: "datetime"
+  }, {
+    name: "is_active",
+    type: "boolean"
+  }, {
+    name: "customer",
+    type: "json"
+  }, {
+    name: "staff",
+    type: "json"
+  }, {
+    name: "shipper",
+    type: "json"
+  }],
+  relationships: [{
+    to: "UserAddress"
+  }, {
+    to: "Order"
+  }, {
+    to: "Rating"
+  }]
+}, {
+  name: "UserAddress",
+  position: {
+    x: 300,
+    y: 280,
+    width: 250,
+    height: 160
+  },
+  fields: [{
+    name: "useraddress_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "user_id",
+    type: "FK",
+    isPrimary: false
+  }, {
+    name: "label",
+    type: "varchar"
+  }, {
+    name: "address",
+    type: "json"
+  }, {
+    name: "is_default",
+    type: "boolean"
+  }],
+  relationships: [{
+    to: "User"
+  }]
+}, {
+  name: "Salary",
+  position: {
+    x: 40,
+    y: 30,
+    width: 250,
+    height: 140
+  },
+  fields: [{
+    name: "salary_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "staff_id",
+    type: "varchar"
+  }, {
+    name: "date",
+    type: "datetime"
+  }, {
+    name: "total_income",
+    type: "float"
+  }],
+  relationships: []
+}, {
+  name: "Rating",
+  position: {
+    x: 40,
+    y: 240,
+    width: 250,
+    height: 200
+  },
+  fields: [{
+    name: "rating_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "order_id",
+    type: "FK"
+  }, {
+    name: "product_id",
+    type: "FK"
+  }, {
+    name: "customer_id",
+    type: "FK"
+  }, {
+    name: "rating",
+    type: "float"
+  }, {
+    name: "comment",
+    type: "text"
+  }, {
+    name: "created_at",
+    type: "datetime"
+  }],
+  relationships: [{
+    to: "User"
+  }, {
+    to: "Order"
+  }]
+}, {
+  name: "Notification",
+  position: {
+    x: 300,
+    y: 450,
+    width: 250,
+    height: 180
+  },
+  fields: [{
+    name: "notification_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "user_id",
+    type: "FK"
+  }, {
+    name: "title",
+    type: "varchar"
+  }, {
+    name: "content",
+    type: "text"
+  }, {
+    name: "type",
+    type: "varchar"
+  }, {
+    name: "read_at",
+    type: "datetime"
+  }, {
+    name: "sent_at",
+    type: "datetime"
+  }, {
+    name: "status",
+    type: "varchar"
+  }],
+  relationships: [{
+    to: "User"
+  }]
+}, {
+  name: "Coupon",
+  position: {
+    x: 760,
+    y: 80,
+    width: 250,
+    height: 200
+  },
+  fields: [{
+    name: "coupon_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "code",
+    type: "varchar"
+  }, {
+    name: "discount_type",
+    type: "varchar"
+  }, {
+    name: "discount_value",
+    type: "float"
+  }, {
+    name: "valid_from",
+    type: "datetime"
+  }, {
+    name: "valid_to",
+    type: "datetime"
+  }, {
+    name: "min_order_value",
+    type: "float"
+  }, {
+    name: "is_promotional",
+    type: "boolean"
+  }],
+  relationships: [{
+    to: "Order"
+  }]
+}, {
+  name: "Warehouse",
+  position: {
+    x: 500,
+    y: 380,
+    width: 250,
+    height: 180
+  },
+  fields: [{
+    name: "warehouse_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "location",
+    type: "varchar"
+  }, {
+    name: "capacity",
+    type: "int"
+  }, {
+    name: "max_storage_capacity",
+    type: "float"
+  }, {
+    name: "current_stock",
+    type: "int"
+  }],
+  relationships: [{
+    to: "TransferInvoice"
+  }, {
+    to: "OrderItem"
+  }]
+}, {
+  name: "TransferInvoice",
+  position: {
+    x: 670,
+    y: 360,
+    width: 250,
+    height: 200
+  },
+  fields: [{
+    name: "transferinvoice_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "from_warehouse_id",
+    type: "FK"
+  }, {
+    name: "to_warehouse_id",
+    type: "FK"
+  }, {
+    name: "product_order_id",
+    type: "FK"
+  }, {
+    name: "confirmed_by",
+    type: "varchar"
+  }, {
+    name: "confirmed_at",
+    type: "datetime"
+  }],
+  relationships: [{
+    to: "Warehouse"
+  }]
+}, {
+  name: "OrderItem",
+  position: {
+    x: 500,
+    y: 580,
+    width: 250,
+    height: 200
+  },
+  fields: [{
+    name: "item_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "order_id",
+    type: "FK"
+  }, {
+    name: "warehouse_id",
+    type: "FK"
+  }, {
+    name: "description",
+    type: "text"
+  }, {
+    name: "quantity",
+    type: "int"
+  }, {
+    name: "status",
+    type: "varchar"
+  }, {
+    name: "image_preview",
+    type: "json"
+  }],
+  relationships: [{
+    to: "Order"
+  }, {
+    to: "Warehouse"
+  }]
+}, {
+  name: "CartTransport",
+  position: {
+    x: 300,
+    y: 650,
+    width: 250,
+    height: 160
+  },
+  fields: [{
+    name: "carttransport_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "license_plate",
+    type: "varchar"
+  }, {
+    name: "capacity_kg",
+    type: "float"
+  }, {
+    name: "driver_name",
+    type: "varchar"
+  }, {
+    name: "assigned_group_id",
+    type: "FK"
+  }],
+  relationships: [{
+    to: "GroupOrder"
+  }]
+}, {
+  name: "GroupOrder",
+  position: {
+    x: 560,
+    y: 780,
+    width: 250,
+    height: 160
+  },
+  fields: [{
+    name: "grouporder_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "province",
+    type: "varchar"
+  }, {
+    name: "district",
+    type: "varchar"
+  }, {
+    name: "created_at",
+    type: "datetime"
+  }, {
+    name: "order_id",
+    type: "FK"
+  }],
+  relationships: [{
+    to: "Order"
+  }, {
+    to: "CartTransport"
+  }]
+}, {
+  name: "Payment",
+  position: {
+    x: 500,
+    y: 950,
+    width: 250,
+    height: 180
+  },
+  fields: [{
+    name: "payment_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "order_id",
+    type: "FK"
+  }, {
+    name: "amount",
+    type: "float"
+  }, {
+    name: "method",
+    type: "varchar"
+  }, {
+    name: "status",
+    type: "varchar"
+  }, {
+    name: "paid_at",
+    type: "datetime"
+  }],
+  relationships: [{
+    to: "Order"
+  }]
+}, {
+  name: "Tracking",
+  position: {
+    x: 940,
+    y: 850,
+    width: 250,
+    height: 180
+  },
+  fields: [{
+    name: "tracking_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "order_id",
+    type: "FK"
+  }, {
+    name: "shipper_id",
+    type: "FK"
+  }, {
+    name: "status",
+    type: "varchar"
+  }, {
+    name: "location",
+    type: "varchar"
+  }, {
+    name: "timestamp",
+    type: "datetime"
+  }, {
+    name: "driver_suggestion",
+    type: "json"
+  }],
+  relationships: [{
+    to: "Order"
+  }]
+}, {
+  name: "Order",
+  position: {
+    x: 560,
+    y: 930,
+    width: 250,
+    height: 300
+  },
+  fields: [{
+    name: "order_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "coupon_id",
+    type: "FK"
+  }, {
+    name: "customer_id",
+    type: "FK"
+  }, {
+    name: "pickup_address",
+    type: "varchar"
+  }, {
+    name: "delivery_address",
+    type: "varchar"
+  }, {
+    name: "weight",
+    type: "float"
+  }, {
+    name: "dimensions",
+    type: "varchar"
+  }, {
+    name: "item_type",
+    type: "varchar"
+  }, {
+    name: "service_type",
+    type: "varchar"
+  }, {
+    name: "total",
+    type: "float"
+  }, {
+    name: "total_tax",
+    type: "float"
+  }, {
+    name: "service_fee",
+    type: "float"
+  }, {
+    name: "is_subscribe",
+    type: "boolean"
+  }, {
+    name: "created_at",
+    type: "datetime"
+  }, {
+    name: "delivered_at",
+    type: "datetime"
+  }, {
+    name: "estimated_time",
+    type: "datetime"
+  }, {
+    name: "driver_time_suggestion",
+    type: "datetime"
+  }],
+  relationships: [{
+    to: "User"
+  }, {
+    to: "OrderItem"
+  }, {
+    to: "Payment"
+  }, {
+    to: "Tracking"
+  }, {
+    to: "GroupOrder"
+  }, {
+    to: "CustomerCart"
+  }]
+}, {
+  name: "CustomerCart",
+  position: {
+    x: 800,
+    y: 990,
+    width: 250,
+    height: 120
+  },
+  fields: [{
+    name: "cart_id",
+    type: "PK",
+    isPrimary: true
+  }, {
+    name: "order_id",
+    type: "FK"
+  }, {
+    name: "amount",
+    type: "float"
+  }, {
+    name: "date",
+    type: "datetime"
+  }],
+  relationships: [{
+    to: "Order"
+  }]
+}];
